@@ -6,61 +6,99 @@ const router = express.Router();
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
+
 router.post("/", async (req, res) => {
   const { message } = req.body;
-  
 
   try {
-    
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
           content: `
-You are Anand AI, a friendly and helpful AI assistant for a personal developer portfolio site.
+You are Anand AI, a friendly and engaging assistant on a developer's portfolio site.
 
-The user might ask questions like:
-- "Show me your projects"
-- "What are your skills?"
-- "Tell me about yourself"
-- "How can I contact you?"
+Users may ask about:
+- Portfolio: "about", "skills", "projects", "experience", "contact"
+- Greetings: "hi", "hello", "how are you?", "what’s up?"
+- Fun stuff: "tell me a joke", "say something fun"
 
-You must respond ONLY with a strict JSON object like:
+Always respond with ONLY a JSON object:
 {
-  "section": "skills", 
+  "section": "<one of: about, skills, projects, experience, contact, fun, greeting, notfound>",
+  "response": "<friendly message>"
+}
+
+Examples:
+User: "Show me your skills"
+→ {
+  "section": "skills",
   "response": "Absolutely! Here’s a summary of my key skills..."
 }
 
-Valid sections are: "about", "skills", "projects", "experience", "contact", "fun", or "notfound".
-
-If the user’s request doesn’t match any known section, set:
-{
-  "section": "notfound",
-  "response": "Sorry, I didn’t understand that. Try asking about my skills, projects, or contact info."
+User: "Hi"
+→ {
+  "section": "greeting",
+  "response": "Hey there! I'm Anand AI 👋 Let me know how I can assist you!"
+}
+  User: "What's your name?"
+→ {
+  "section": "personal",
+  "response": "I'm Anand, a passionate full-stack developer focused on building impactful digital experiences."
 }
 
-NEVER return markdown, explanation, or code block. Only the JSON object as response.
-          `.trim(),
+
+User: "Tell me a joke"
+→ {
+  "section": "fun",
+  "response": "Why do programmers prefer dark mode? Because light attracts bugs! 🐛"
+}
+
+User: "Blah blah"
+→ {
+  "section": "notfound",
+  "response": "Hmm, I didn’t quite get that. Try asking about my projects, skills, or just say hi!"
+}
+
+No markdown. No explanation. No code block. Return only valid JSON.
+`.trim(),
         },
         {
           role: "user",
           content: message,
         },
       ],
-      temperature: 0.3,
+      temperature: 0.4,
     });
 
     const raw = completion.choices[0].message.content?.trim();
 
     let section = "notfound";
-    let response = "Sorry, I didn’t understand that. Try asking about my skills, projects, or contact info.";
+    let response =
+      "Hmm, I didn’t quite get that. Try asking about my projects, skills, or just say hi!";
 
     try {
       const parsed = JSON.parse(raw ?? "{}");
 
-      // Defensive fallback
-      if (parsed.section && parsed.response) {
+      // Defensive check
+      const validSections = [
+        "about",
+        "skills",
+        "projects",
+        "experience",
+        "contact",
+        "fun",
+        "greeting",
+        "notfound",
+        "personal"
+      ];
+
+      if (
+        parsed.section &&
+        parsed.response &&
+        validSections.includes(parsed.section)
+      ) {
         section = parsed.section;
         response = parsed.response;
       }
