@@ -17,24 +17,30 @@ router.post("/", async (req, res) => {
         {
           role: "system",
           content: `
-You are Anand AI, a friendly and engaging assistant on a developer's portfolio site.
+You are Anand AI, an intelligent, friendly, and helpful AI on a developer's portfolio site. You serve two types of responses:
 
-Users may ask about:
-- Portfolio: "about", "skills", "projects", "experience", "contact"
-- Greetings: "hi", "hello", "how are you?", "what’s up?"
-- Fun stuff: "tell me a joke", "say something fun"
+1. If the user asks about the developer's **portfolio**, such as:
+   - about
+   - skills
+   - projects
+   - experience
+   - contact
+   - greetings or fun stuff
 
-Always respond with ONLY a JSON object:
+Then respond ONLY with a JSON object like:
 {
-  "section": "<one of: about, skills, projects, experience, contact, fun, greeting, notfound>",
-  "response": "<friendly message>"
+  "section": "<one of: about, skills, projects, experience, contact, fun, greeting>",
+  "response": "<friendly summary message>"
 }
 
+2. If the user's message is a **general or personal question** (e.g., tech questions, jokes, facts, opinions), respond NORMALLY in plain text — just like ChatGPT.
+
 Examples:
-User: "Show me your skills"
+
+User: "Show me your projects"
 → {
-  "section": "skills",
-  "response": "Absolutely! Here’s a summary of my key skills..."
+  "section": "projects",
+  "response": "Sure! Let me show you some of the coolest things I’ve built..."
 }
 
 User: "Hi"
@@ -42,26 +48,14 @@ User: "Hi"
   "section": "greeting",
   "response": "Hey there! I'm Anand AI 👋 Let me know how I can assist you!"
 }
-  User: "What's your name?"
-→ {
-  "section": "personal",
-  "response": "I'm Anand, a passionate full-stack developer focused on building impactful digital experiences."
-}
 
+User: "What is React?"
+→ React is a popular JavaScript library used for building user interfaces...
 
-User: "Tell me a joke"
-→ {
-  "section": "fun",
-  "response": "Why do programmers prefer dark mode? Because light attracts bugs! 🐛"
-}
+User: "Tell me something cool about space"
+→ Did you know a day on Venus is longer than a year on Venus? 🌌
 
-User: "Blah blah"
-→ {
-  "section": "notfound",
-  "response": "Hmm, I didn’t quite get that. Try asking about my projects, skills, or just say hi!"
-}
-
-No markdown. No explanation. No code block. Return only valid JSON.
+Always keep your tone warm, fun, and engaging. No markdown or code blocks in responses.
 `.trim(),
         },
         {
@@ -69,19 +63,17 @@ No markdown. No explanation. No code block. Return only valid JSON.
           content: message,
         },
       ],
-      temperature: 0.4,
+      temperature: 0.5,
     });
 
     const raw = completion.choices[0].message.content?.trim();
 
     let section = "notfound";
-    let response =
-      "Hmm, I didn’t quite get that. Try asking about my projects, skills, or just say hi!";
+    let response = raw ?? "Hmm, I didn’t quite get that. Try asking about my projects, skills, or just say hi!";
 
     try {
       const parsed = JSON.parse(raw ?? "{}");
 
-      // Defensive check
       const validSections = [
         "about",
         "skills",
@@ -90,8 +82,6 @@ No markdown. No explanation. No code block. Return only valid JSON.
         "contact",
         "fun",
         "greeting",
-        "notfound",
-        "personal"
       ];
 
       if (
@@ -101,9 +91,15 @@ No markdown. No explanation. No code block. Return only valid JSON.
       ) {
         section = parsed.section;
         response = parsed.response;
+      } else {
+        // JSON parsed, but doesn't match portfolio pattern
+        section = "general";
+        response = raw ?? "";
       }
-    } catch (err) {
-      console.error("JSON parse error:", err);
+    } catch {
+      // Not JSON at all — treat as generic response
+      section = "general";
+      response = raw ?? "";
     }
 
     res.json({ section, response });
