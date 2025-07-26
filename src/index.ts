@@ -14,6 +14,12 @@ app.use(express.json());
 
 app.use("/api/ai", aiRouter);
 
+// 🔁 Keep-alive route
+app.get("/ping", (req, res) => {
+  res.send("Backend is awake!");
+});
+
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
